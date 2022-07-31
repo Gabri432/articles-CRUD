@@ -43,9 +43,14 @@ func (ah *ArticlesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		ah.getArticle(w, r)
 	case "POST":
-		ah.createArticle(w, r)
+		ah.createOrUpdateArticle(w, r, len(ah.articles)+1)
 	case "PUT", "PATCH":
-		ah.modifyArticle(w, r)
+		index, err := getIndex(r)
+		if _, ok := ah.articles[index]; err != nil || ok == false {
+			respondError(w, http.StatusNotFound, "Title of the article not found.")
+			return
+		}
+		ah.createOrUpdateArticle(w, r, index)
 	case "DELETE":
 		ah.deleteArticle(w, r)
 	default:
@@ -85,39 +90,9 @@ func (ah *ArticlesHandler) getArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(ah.articles[index])
 }
 
-func (ah *ArticlesHandler) createArticle(w http.ResponseWriter, r *http.Request) {
+func (ah *ArticlesHandler) createOrUpdateArticle(w http.ResponseWriter, r *http.Request, index int) {
 	fmt.Fprintf(w, "createArticle is called.")
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	contentType := r.Header.Values("Content-Type")[0]
-	if contentType != "application/json" {
-		respondError(w, http.StatusUnsupportedMediaType, "Content is not in 'application/json' format.")
-		return
-	}
-	var article Article
-	err = json.Unmarshal(body, &article)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	defer ah.Unlock()
-	ah.Lock()
-	ah.articles[len(ah.articles)+1] = article
-	respondJSON(w, http.StatusCreated, ah.articles)
-}
-
-func (ah *ArticlesHandler) modifyArticle(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "modifyArticle is called.")
-	defer r.Body.Close()
-	index, err := getIndex(r)
-	if _, ok := ah.articles[index]; err != nil || ok == false {
-		respondError(w, http.StatusNotFound, "Title of the article not found.")
-		return
-	}
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, err.Error())
