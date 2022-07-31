@@ -9,4 +9,6 @@ My intention was also not to use the "gorilla/mux" package in order to understan
 I have used the "Invoke-RestMethod" command because I was using PowerShell.
 
 ## I have taken inspiration for this code from this YouTube video:
+### "Go REST API with NO DEPENDENCIES!?!" - Donald Feury
 https://www.youtube.com/watch?v=Z01gUyC-q0E
+
