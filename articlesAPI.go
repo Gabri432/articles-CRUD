@@ -65,20 +65,26 @@ func newArticleHandler() *ArticlesHandler {
 
 func (ah *ArticlesHandler) getAllArticles(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "getAllArticles is called.")
+	json.NewEncoder(w).Encode(ah.articles)
 }
 
 func (ah *ArticlesHandler) getArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "getArticle is called.")
 	defer ah.Unlock()
 	ah.Lock()
-	id, err := getTitle(r)
-	if _, ok := ah.articles[id]; err != nil || ok == false {
+	index, err := getIndex(r)
+	if err != nil {
 		respondError(w, http.StatusNotFound, "Title of the article not found.")
 		return
 	}
-	respondJSON(w, http.StatusOK, ah.articles[id])
-	fmt.Println(ah.articles[id])
+	if index == -1 {
+		ah.getAllArticles(w, r)
+		return
+	}
+	respondJSON(w, http.StatusOK, ah.articles[index])
+	fmt.Println(ah.articles[index])
 }
+
 func (ah *ArticlesHandler) createArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "createArticle is called.")
 	defer r.Body.Close()
@@ -101,27 +107,54 @@ func (ah *ArticlesHandler) createArticle(w http.ResponseWriter, r *http.Request)
 	defer ah.Unlock()
 	ah.Lock()
 	ah.articles[len(ah.articles)+1] = article
-	//ah.articles = append(ah.articles, article)
 	respondJSON(w, http.StatusCreated, article)
 }
+
 func (ah *ArticlesHandler) modifyArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "modifyArticle is called.")
+	defer r.Body.Close()
+	index, err := getIndex(r)
+	if _, ok := ah.articles[index]; err != nil || ok == false {
+		respondError(w, http.StatusNotFound, "Title of the article not found.")
+		return
+	}
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	contentType := r.Header.Values("Content-Type")[0]
+	if contentType != "application/json" {
+		respondError(w, http.StatusUnsupportedMediaType, "Content is not in 'application/json' format.")
+		return
+	}
+	var article Article
+	err = json.Unmarshal(body, &article)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer ah.Unlock()
+	ah.Lock()
+	ah.articles[index] = article
+	respondJSON(w, http.StatusCreated, article)
 }
+
 func (ah *ArticlesHandler) deleteArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "deleteArticle is called.")
 }
 
-func getTitle(r *http.Request) (int, error) {
+func getIndex(r *http.Request) (int, error) {
 	parts := strings.Split(r.URL.String(), "/")
 	fmt.Println(parts)
 	if len(parts) < 2 {
 		return 0, errors.New("Not found.")
 	}
-	id, err := strconv.Atoi(parts[2])
+	index, err := strconv.Atoi(parts[2])
 	if err != nil {
 		return 0, errors.New("Not found.")
 	}
-	return id, nil
+	return index, nil
 }
 
 func respondError(w http.ResponseWriter, code int, errorMessage string) {
@@ -136,4 +169,3 @@ func respondJSON(w http.ResponseWriter, code int, data interface{}) {
 }
 
 //Invoke-RestMethod -Method 'Post' http://localhost:8081/articles -Body (@{id=4; title="Title4"; desc="Desc4"; content="Content4"} | ConvertTo-Json) -Headers @{ "Content-Type" = "application/json"}
-//Invoke-RestMethod -Method 'Post' http://localhost:8081/articles -Body {`"{\"Id\":\"4\"}"`}  -Headers @{ "Content-Type" = "application/json"}
