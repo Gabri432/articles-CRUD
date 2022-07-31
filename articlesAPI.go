@@ -152,4 +152,3 @@ func respondJSON(w http.ResponseWriter, code int, data interface{}) {
 	w.Write(response)
 }
 
-//Invoke-RestMethod -Method 'Post' http://localhost:8081/articles -Body (@{id=4; title="Title4"; desc="Desc4"; content="Content4"} | ConvertTo-Json) -Headers @{ "Content-Type" = "application/json"}
