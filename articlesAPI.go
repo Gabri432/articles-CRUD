@@ -107,7 +107,7 @@ func (ah *ArticlesHandler) createArticle(w http.ResponseWriter, r *http.Request)
 	defer ah.Unlock()
 	ah.Lock()
 	ah.articles[len(ah.articles)+1] = article
-	respondJSON(w, http.StatusCreated, article)
+	respondJSON(w, http.StatusCreated, ah.articles)
 }
 
 func (ah *ArticlesHandler) modifyArticle(w http.ResponseWriter, r *http.Request) {
@@ -137,11 +137,20 @@ func (ah *ArticlesHandler) modifyArticle(w http.ResponseWriter, r *http.Request)
 	defer ah.Unlock()
 	ah.Lock()
 	ah.articles[index] = article
-	respondJSON(w, http.StatusCreated, article)
+	respondJSON(w, http.StatusCreated, ah.articles)
 }
 
 func (ah *ArticlesHandler) deleteArticle(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "deleteArticle is called.")
+	index, err := getIndex(r)
+	defer ah.Unlock()
+	ah.Lock()
+	if _, ok := ah.articles[index]; err != nil || ok == false {
+		respondError(w, http.StatusNotFound, "Title of the article not found.")
+		return
+	}
+	delete(ah.articles, index)
+	respondJSON(w, http.StatusCreated, ah.articles)
 }
 
 func getIndex(r *http.Request) (int, error) {
